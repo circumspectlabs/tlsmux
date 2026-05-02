@@ -1,0 +1,130 @@
+http:
+  ###
+  ### Enable or disable http templating module.
+  ###
+  enabled: true
+
+  ###
+  ### This snippet will be added to the http block in nginx
+  ### configuration, as is. You can use it to set any http level
+  ### configuration, including additional maps, variables, extra server
+  ### definitions, default settings, etc.
+  ###
+  snippet: |-
+    sendfile  on;
+
+    map_hash_bucket_size  4096;
+
+    gzip               off;
+    gzip_proxied       off;
+    gzip_static        off;
+    gzip_buffers       16 16k;
+    gzip_comp_level    3;
+    gzip_http_version  1.1;
+    gzip_min_length    1000;
+
+    http2                         on;
+    http2_max_concurrent_streams  128;
+
+    keepalive_timeout 3m;
+    keepalive_requests 1000;
+
+    client_max_body_size  4G;
+
+    client_header_buffer_size    16k;
+    client_body_buffer_size      16k;
+    large_client_header_buffers  4 32k;
+
+    proxy_busy_buffers_size    32k;
+    proxy_buffers            8 16k;
+    proxy_buffer_size          16k;
+
+    default_type  application/octet-stream;
+
+    ###
+    ### Enable if you need
+    ###
+    # resolver 10.0.0.10 ipv6=off valid=30s;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    {{ if .dhparams.found -}}
+    ssl_dhparam {{ .dhparams.file }};
+    {{- end }}
+
+    # Hide some headers for security reasons
+    server_tokens            off;
+    server_name_in_redirect  off;
+    more_clear_headers       'X-Hidden-*';
+    more_clear_headers       'X-Powered-*';
+    more_clear_headers       'Server';
+    more_clear_headers       'X-Forwarded-Server';
+
+    # Basic proxy settings
+    proxy_http_version     1.1;
+    proxy_socket_keepalive on;
+    proxy_set_header    Host $host;
+    proxy_set_header    X-Real-IP $remote_addr;
+    proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header    X-Forwarded-Proto $scheme;
+    proxy_set_header    Upgrade $http_upgrade;
+    proxy_set_header    Connection $http_connection;
+    proxy_cache_bypass  $http_upgrade;
+
+  ###
+  ### Servers can have only snippet field which will be templated
+  ### by the same context and added into http block. If you want to
+  ### add an upstream or map block, you can append it to the non-server
+  ### snippet (above).
+  ###
+  servers:
+    - snippet: |-
+        listen 80 default_server;
+        server_name _;
+
+        root /var/empty;
+        index index.html;
+
+        location ^~ /.well-known/ {
+            alias /data/well-known/;
+
+            limit_except GET {
+                deny all;
+            }
+
+            access_log off;
+            log_not_found off;
+        }
+
+        location / {
+          # 307 - temporary, 308 - permanent
+          return 307 https://$host$request_uri;
+        }
+
+        # Security comment: that is not open redirect because it is on the
+        # same host, but it's still better to avoid it if your list of domains
+        # can vary by external configuration (customer-supplied, etc.).
+    - snippet: |-
+        # default http server
+        listen 8443 ssl proxy_protocol;
+        server_name _;
+
+        {{ $default_ssl_ceritificate := "" -}}
+
+        {{- range $key, $_ := (. | get "ssl-ceritificates") -}}
+          {{- if regexMatch `^[\d]+\.[\d]+\.[\d]+\.[\d]+$` $key -}}
+            {{- $default_ssl_ceritificate = $key -}}
+          {{- end -}}
+        {{- end -}}
+
+        {{ if $default_ssl_ceritificate -}}
+        ssl_certificate {{ . | get "ssl-ceritificates" | get $default_ssl_ceritificate | get "cert_file" }};
+        ssl_certificate_key {{ . | get "ssl-ceritificates" | get $default_ssl_ceritificate | get "key_file" }};
+        {{- else -}}
+        ssl_certificate {{ . | get "ssl-ceritificates" | get "default" | get "cert_file" }};
+        ssl_certificate_key {{ . | get "ssl-ceritificates" | get "default" | get "key_file" }};
+        {{- end }}
+
+        location / {
+          return 200 "Hello, World!";
+        }

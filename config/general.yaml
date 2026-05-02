@@ -1,0 +1,42 @@
+###
+### Basic YAML manifests, merged into a single context. The merge
+### is deep, so you can split your configuration into multiple files
+### overriding previous settings.
+### The order of merges is determined by the alphabetical order of
+### file paths. To explicitly enforce the order, you can use "10-base.yaml",
+### "20-general.yaml", "99-enforced.yaml", etc. naming convention,
+### but it is not required.
+###
+global:
+  ###
+  ### Add any global nginx configuration here, for example, user,
+  ### worker_processes, error_log, pid, environment variables
+  ### whitelist, etc.
+  ###
+  snippet: |-
+    worker_processes  auto;
+
+    error_log  /var/log/nginx/error.log notice;
+    pid        /var/run/nginx.pid;
+
+    events {
+      worker_connections 512;
+    }
+
+    daemon off;
+
+###
+### You can practically add almost any number of settings here,
+### even in different files. Everything will be deeply merged into
+### single JSON structure and used as a context while templating.
+### Since all snippets are rendered with the same context, you can
+### use these settings in any snippet, for example, to enable some
+### list of domains and routes and build a lot of server and location
+### definitions based on that. You can also enable lua code in the
+### same snippets.
+###
+
+###
+### To prevent re-generating dhparam.pem on every start, you can
+### persist the generated file here, next to YAML context.
+###

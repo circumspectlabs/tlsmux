@@ -1,0 +1,175 @@
+###
+### TLS multiplexer without termination. Can check ALPN and SNI
+### in the TCP stream and route to different backends based on
+### that. Has explicit routes, default route (designed to pass
+### traffic to SSL termination proxy) and no-ssl route (designed
+### to pass non-SSL traffic, useful for SSH and other protocols).
+###
+### This doesn't terminate TLS allowing to use client certificates
+### security features and keep E2EE enabled.
+###
+premux:
+  ###
+  ### Enable or disable premux stream module.
+  ###
+  enabled: true
+
+  ###
+  ### This snippet will be added to the http block in nginx
+  ### configuration, as is. You can use it to set any http level
+  ### configuration, including additional maps, variables, extra server
+  ### definitions, default settings, etc.
+  ###
+  snippet: |-
+    map_hash_bucket_size  4096;
+
+    ###
+    ### If you want to enable SSH over TLS feature, you need to
+    ### insert the mentioned in "ssh.yaml" file configuration here
+    ###
+
+  ###
+  ### Routes can have SNI, list of ALPN, and target. Both SNI and
+  ### ALPN are optional, but at least one of them required if you
+  ### want to use default target. ALPN list might have multiple
+  ### values which means ANY of specified ALPN values will match
+  ### the route.
+  ### The order of routes should be the same as in the list, but
+  ### it's not guaranteed (test in case you heavily rely on the
+  ### order). Duplicated routes are not allowed and will cause an
+  ### error.
+  ### Target is a list of backend addresses, optionally with
+  ### parameters (space separated). Default balancing method is
+  ### round-robin, details here: https://nginx.org/en/docs/stream/ngx_stream_upstream_module.html#server
+  ### You can enable/disable PROXY protocol for each route separately,
+  ### but if you enable it for the route, make sure that downstream
+  ### listener expects it as well.
+  ###
+  ### WARNING: general proxy_protocol and in-route proxy_protocol
+  ### settings are independent and control different parts of the
+  ### traffic flow! General proxy_protocol setting controls listener,
+  ### while in-route proxy_protocol setting controls whether to
+  ### pass PROXY protocol to the target.
+  ###
+  ### Whitelists support IPv4+CIDR and IPv4 without CIDR (defaults
+  ### to /32), IPv6+CIDR and IPv6 without CIDR (defaults to /128).
+  ### You can specify multiple entries. If no whitelist is specified
+  ### (or empty list), then all addresses are allowed.
+  ###
+  routes:
+    - sni: test.local
+      alpn:
+        - custom
+      target:
+        - 1.1.1.1:443
+      whitelist:
+        - 127.0.0.0/8
+        - 10.0.0.0/8
+        - 192.168.0.0/16
+        - 172.16.0.0/12
+        - 100.64.0.0/10
+        - ::1/128
+        - fd00::/8
+    - sni: test2.local
+      alpn:
+        - http/1.1
+        - http/2
+        - h2
+        - h3
+      target:
+        - 10.0.0.10:6443
+      proxy_protocol: true
+      whitelist:
+        - 127.0.0.0/8
+    - sni: test3.local
+      target:
+        - 10.0.0.10:6443
+      proxy_protocol: false
+    - alpn:
+        - sshovertls/0.9
+      target:
+        - 10.0.0.10:6443
+      whitelist:
+        - 1.1.1.1
+    ###
+    ### Realistic example of SSH over TLS, but requires some extra
+    ### configuration from the client side. Check the details in "ssh.yaml"
+    ### file.
+    ###
+    # - alpn:
+    #     - sshovertls/0.9
+    #   target:
+    #     - 127.0.0.1:2222
+    #   proxy_protocol: true
+
+  ###
+  ### No-TLS target is used when it cannot identify TLS ClientHello
+  ### in the stream. This is useful for SSH and other non-TLS
+  ### protocols. If not specified, default target will be used.
+  ### You can specify only one such target (because there is no way
+  ### to differ no-TLS traffic in that way).
+  ###
+  no_tls:
+    enabled: true
+    target:
+      - 10.0.0.10:22
+    proxy_protocol: false
+    whitelist:
+      - 192.168.0.0/16
+
+  ###
+  ### Default target is the fallback target when no routes match.
+  ### This is designed to pass traffic to SSL termination proxy, but
+  ### you can use it for any other purpose, including tarpitting or
+  ### or any kind of traffic manipulation. If not specified, there
+  ### will be huge chance that this connection will be simply
+  ### terminated (at TCP level).
+  ###
+  default:
+    enabled: true
+    target:
+      - 127.0.0.1:8443
+    proxy_protocol: true
+    # whitelist: [ ... ]
+
+  ###
+  ### Enabled MPTCP support. This is required for HTTP/3 support, but
+  ### it can be useful for other protocols as well. Note that MPTCP
+  ### support must be enabled in kernel (which might not be true) and
+  ### for client side as well.
+  ###
+  multipath: false
+
+  ###
+  ### Enable PROXY protocol support for accepted connections (listen).
+  ### This is required if you want to pass client IP address to the
+  ### backend, but it requires that client sends traffic using PROXY
+  ### protocol as well.
+  ###
+  proxy_protocol: false
+
+  ###
+  ### You can limit addresses what you trust with proxy protocol. If
+  ### client connects from untrusted address, PROXY protocol header will
+  ### be accepted but ignored and client IP will be set to remote address
+  ### of the connection. This is useful when you want to trust to only
+  ### internal network or your CDN/DDoS protection provider.
+  ###
+  real_ip_from:
+    - 127.0.0.0/8
+    - 10.0.0.0/8
+    - 192.168.0.0/16
+    - 172.16.0.0/12
+    - 100.64.0.0/10
+    - ::1/128
+    - fd00::/8
+
+  ###
+  ### Listen address and port. This is required parameter, or nginx
+  ### will fail to start. If just a number, then listent both on IPv4 and
+  ### IPv6. To listen only on IPv4 or only on IPv6, specify address with
+  ### port.
+  ###
+  listen: "443"
+  # listen: "0.0.0.0:443"
+  # listen: "[::]:443"

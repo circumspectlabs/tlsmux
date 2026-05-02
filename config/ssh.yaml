@@ -1,0 +1,111 @@
+###
+### This is an ARBITRARY file which is not integrated into the
+### main configuration. This file mainly explains how to configure
+### quite complex tunneling and multiplexing features with the existing
+### premux configuration. All of these options are enabled in the
+### example YAML files, not directly mentioned in the current templates.
+### This file demonstrates how flexible and powerful the templating
+### system might be, but also can be used for real deployments.
+###
+### We are fine to leave it enabled because it doesn't affect the main
+### configuration. You can safely remove it if you don't need.
+###
+### To enable this feature, you need to insert extra snippet into the
+### premux configuration (path: .premux.snippet) and enable forwarding
+### by ALPN in the premux routes (path: .premux.routes). Check the details
+### in these files.
+### The snippet to insert is provided in the end of this file.
+###
+ssh:
+  routes:
+    - sni: ssh-1.machine.local
+      target:
+        - 10.0.0.10:22
+    - sni: ssh-2.machine.local
+      target:
+        - 10.0.0.20:22
+    - sni: ssh-1-ipv6.machine.local
+      target:
+        - "[2001:db8::10]:22"
+
+###
+### Just again, to enable this feature:
+### 1. Add this entry for premux routes (.premux.routes):
+###   - alpn:
+###       - sshovertls/0.9
+###     target:
+###       - 127.0.0.1:2222
+###     proxy_protocol: true
+###
+### 2. Add the stream snipped (in .premux.snippet), provided in the end
+###    of this file.
+###
+### 3. Configure "ssh.yaml" as set in the example above.
+###
+### 4. Configure your SSH client to use "sshovertls/0.9" ALPN and connect
+###    to the premux listener. Use this ~/.ssh/config:
+###
+###    Host *.machine.local
+###      ProxyCommand openssl s_client -connect %h:443 -servername %h -alpn sshovertls/0.9 -quiet -no_ssl3 -no_tls1 -no_tls1_1 -tls1_2 -tls1_3
+###      # -connect %h:443 - real endpoint, should be the port where premux listens
+###      # -servername %h - SNI, used by router to identify the target upstream
+###      # -alpn sshovertls/0.9 - ALPN, used by router to identify ssh connection
+###
+### Note: this example skips TLS verification for simplicity. You can enable extra
+### security by using client certificates and/or proper CA verification. For the
+### current setup, it's completelly fine to use any dummy certificate on the premux
+### side, because the authenticity of the client is verified by the SSH protocol.
+###
+
+###
+### .premux.snippet addition:
+###
+################################################################
+### {{ define "ssh_upstream" -}}
+### ssh_{{- regexReplaceAll "[^a-zA-Z0-9]" .sni "_" -}}
+### {{- end -}}
+###
+### map "$ssl_server_name" $ssh_target {
+###   {{- range $route := .ssh.routes }}
+###   "{{ $route.sni }}" {{ template "ssh_upstream" $route }};
+###   {{- end }}
+### }
+###
+### {{ range $upstream := .ssh.routes -}}
+### upstream {{ template "ssh_upstream" $upstream }} {
+###   {{ range .target -}}
+###   server "{{ . }}";
+###   {{- end }}
+### }
+###
+### {{ end -}}
+###
+### ssl_protocols TLSv1.2 TLSv1.3;
+### ssl_prefer_server_ciphers on;
+### {{ if .dhparams.found -}}
+### ssl_dhparam {{ .dhparams.file }};
+### {{- end }}
+###
+### server {
+###   listen 2222 ssl proxy_protocol;
+###   server_name _;
+###
+###   {{ $default_ssl_ceritificate := "" -}}
+###
+###   {{- range $key, $_ := (. | get "ssl-ceritificates") -}}
+###     {{- if regexMatch `^[\d]+\.[\d]+\.[\d]+\.[\d]+$` $key -}}
+###       {{- $default_ssl_ceritificate = $key -}}
+###     {{- end -}}
+###   {{- end -}}
+###
+###   {{ if $default_ssl_ceritificate -}}
+###   ssl_certificate {{ . | get "ssl-ceritificates" | get $default_ssl_ceritificate | get "cert_file" }};
+###   ssl_certificate_key {{ . | get "ssl-ceritificates" | get $default_ssl_ceritificate | get "key_file" }};
+###   {{- else -}}
+###   ssl_certificate {{ . | get "ssl-ceritificates" | get "default" | get "cert_file" }};
+###   ssl_certificate_key {{ . | get "ssl-ceritificates" | get "default" | get "key_file" }};
+###   {{- end }}
+###
+###   proxy_pass      $ssh_target;
+### }
+################################################################
