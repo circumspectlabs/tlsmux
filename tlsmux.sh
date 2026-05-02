@@ -70,7 +70,7 @@ function discover_ssl_certs() {
     echo '"ssl-ceritificates":' > "${out}"
 
     SSL_CERTS_DISCOVERY_ROOT="/etc/letsencrypt"
-    if [ -d "${SSL_CERTS_DISCOVERY_ROOT}" ]; then
+    if [ -d "${SSL_CERTS_DISCOVERY_ROOT}/live" ] && [ "$(ls -1 "${SSL_CERTS_DISCOVERY_ROOT}/live" | wc -l || true)" != "0" ]; then
         __SSL_CERTS=($(ls -1 "${SSL_CERTS_DISCOVERY_ROOT}"/live/*/privkey.pem | cut -d '/' -f 5))
         if [[ -n "${__SSL_CERTS[@]}" ]]; then
             for cert in "${__SSL_CERTS[@]}"; do
