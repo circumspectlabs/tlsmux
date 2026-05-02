@@ -306,21 +306,64 @@ function cmd_reload() {
 ###
 ### Argument parsing and dispatch
 ###
+function show_help() {
+    if [[ -n "$@" ]]; then
+        echo "error: $@" >&2
+    fi
+    cat <<-EOF
+Usage: $(basename "$0") [COMMAND] [ARGS...]
+
+TLS multiplexer — nginx wrapper with dynamic config templating and certificate management.
+
+Commands:
+  server   Generate dummy cert, render templates, validate, and exec nginx.
+           Any extra ARGS are forwarded to nginx.
+  check    Compare current config/context hashsums against stored ones.
+           Exits 0 if nothing changed, 1 if changes are detected.
+  reload   Re-render config into a temp dir, validate, deploy, and send nginx
+           a reload signal. No-ops if nothing changed. Reverts to previous config
+           if validation fails.
+  help     Show this help message.
+
+Environment variables:
+  TMPL_DIR              Directory with nginx config templates (default: /etc/template)
+  DST_DIR               Directory where rendered configs are written (default: /etc/nginx)
+  CTX_DIR               Directory with YAML context files to merge (default: /etc/config)
+  STREAM_SNIPPETS_DIR   Optional directory with extra stream.d snippets
+  HTTP_SNIPPETS_DIR     Optional directory with extra http.d snippets
+  DHPARAM_SKIP          Skip DH param generation if "true" (default: false)
+  DHPARAM_BITS          DH param bit size (default: 2048)
+  DEBUG                 Set to any non-empty value to enable debug output
+
+Examples:
+  $(basename "$0") server
+  $(basename "$0") server -g "daemon off;"
+  $(basename "$0") check
+  $(basename "$0") reload
+EOF
+    if [[ -n "$@" ]]; then
+        exit 1
+    fi
+}
+
 MODE=""
 while [[ -n "${1:-}" ]]; do
     case "$1" in
         serve|server|nginx|check|reload)
             if [[ -n "${MODE}" ]]; then
-                echo "error: unexpected argument '$1' after mode '${MODE}'" >&2
+                show_help "error: unexpected argument '$1' after mode '${MODE}'"
                 exit 1
             fi
             MODE="$1"
             shift
             ;;
+        -h|--help|help)
+            show_help
+            exit 0
+            ;;
         *)
             if [[ -z "${MODE}" ]]; then
-                echo "error: unknown command '$1'" >&2
-                echo "usage: $0 {server|check|reload} [args...]" >&2
+                show_help "error: unknown command '$1'"
                 exit 1
             fi
             break

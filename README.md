@@ -20,6 +20,45 @@ On top of that passthrough layer, `tlsmux` includes a full HTTP/HTTPS reverse pr
 template-driven. Both layers share the same YAML context, so a single set of manifests can drive
 both stream routing and HTTP server definitions simultaneously.
 
+## Usage
+
+```bash
+# just use templates in current `config` directory
+docker run -d \
+    --name tlsmux-service \
+    -v $(pwd)/config:/etc/config:ro \
+  ghcr.io/circumspectlabs/tlsmux:latest
+
+# copy plain nginx configs into `stream {}` and `http {}` sections and use custom
+# YAML configs path (/mnt/custom-config-dir in this example). Also mount your
+# certbot certificates storage
+docker run -d \
+    --name tlsmux-service \
+    -e CTX_DIR=/mnt/custom-config-dir \
+    -v $(pwd)/config:/mnt/custom-config-dir:ro \
+    -e STREAM_SNIPPETS_DIR=/mnt/stream.d \
+    -v $(pwd)/stream.d:/mnt/stream.d:ro \
+    -e HTTP_SNIPPETS_DIR=/mnt/http.d \
+    -v $(pwd)/http.d:/mnt/http.d:ro \
+    -v /etc/letsencrypt:/etc/letsencrypt:ro \
+  ghcr.io/circumspectlabs/tlsmux:latest
+
+# sefely rebuild and reload confuration for running service
+docker exec -i tlsmux-service tlsmux reload
+
+# check if the configuration has changes (includes check of automatically updated
+# by certbot certificated)
+docker exec -i tlsmux-service tlsmux check
+
+# however the current templating system allows to enable literally any configuration
+# without changing of templates, you still can customize them
+docker run -d \
+    --name tlsmux-service \
+    -v $(pwd)/config:/etc/config:ro \
+    -v $(pwd)/template:/etc/template:ro \
+  ghcr.io/circumspectlabs/tlsmux:latest
+```
+
 ## Key Features
 
 ### TLS Premux (stream layer)

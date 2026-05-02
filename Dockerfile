@@ -244,7 +244,7 @@ COPY ./template /output/etc/template
 RUN cd /output                               && \
     mkdir -p ./etc/template                  && \
     chmod 755 ./usr/local/bin/tlsmux.sh      && \
-    ln -s tlsmux /usr/local/bin/tlsmux.sh    && \
+    ln -s tlsmux.sh ./usr/local/bin/tlsmux   && \
     chmod 755 -R ./etc/template              && \
     find ./etc/template -type f -exec chmod 644 {} \; && \
     find ./etc/template -type d -exec chmod 755 {} \; && \
@@ -263,5 +263,5 @@ RUN rm /etc/nginx/conf.d/* || true           && \
 COPY --from=compose /output /
 
 USER nginx:nginx
-ENTRYPOINT [ "tlsmux.sh" ]
+ENTRYPOINT [ "tlsmux" ]
 CMD ["server"]
