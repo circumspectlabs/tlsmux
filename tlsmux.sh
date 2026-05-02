@@ -147,11 +147,11 @@ function template_nginx_configs() {
         fi
     done
 
-    if [ "${STREAM_SNIPPETS_DIR}" != "/does/not/exist" ] && [ -d "${STREAM_SNIPPETS_DIR}" ]; then
+    if [ "${STREAM_SNIPPETS_DIR}" != "/does/not/exist" ] && [ -d "${STREAM_SNIPPETS_DIR}" ] && [ "$(ls -1 "${STREAM_SNIPPETS_DIR}" | wc -l || true)" != "0" ]; then
         cp -r "${STREAM_SNIPPETS_DIR}"/* "${target}/stream.d/"
     fi
 
-    if [ "${HTTP_SNIPPETS_DIR}" != "/does/not/exist" ] && [ -d "${HTTP_SNIPPETS_DIR}" ]; then
+    if [ "${HTTP_SNIPPETS_DIR}" != "/does/not/exist" ] && [ -d "${HTTP_SNIPPETS_DIR}" ] && [ "$(ls -1 "${HTTP_SNIPPETS_DIR}" | wc -l || true)" != "0" ]; then
         cp -r "${HTTP_SNIPPETS_DIR}"/* "${target}/http.d/"
     fi
 }
