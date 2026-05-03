@@ -52,12 +52,13 @@ EOF
 }
 
 function create_dhparam() {
-    if [ "${DHPARAM_SKIP}" == "false" ]; then
-        if [ -f "${CTX_DIR}/dhparam.pem" ]; then
-            cp -f "${CTX_DIR}/dhparam.pem" "${DST_DIR}/private/dhparam.pem"
-        fi
-        if [ ! -f "${CTX_DIR}/dhparam.pem" ] && [ ! -f "${DST_DIR}/private/dhparam.pem" ]; then
-            openssl dhparam -out "${DST_DIR}/private/dhparam.pem" ${DHPARAM_BITS}
+    if [ -f "${CTX_DIR}/dhparam.pem" ]; then
+        cp -f "${CTX_DIR}/dhparam.pem" "${DST_DIR}/private/dhparam.pem"
+    else
+        if [ "${DHPARAM_SKIP}" == "false" ]; then
+            if [ ! -f "${CTX_DIR}/dhparam.pem" ] && [ ! -f "${DST_DIR}/private/dhparam.pem" ]; then
+                openssl dhparam -out "${DST_DIR}/private/dhparam.pem" ${DHPARAM_BITS}
+            fi
         fi
     fi
 }

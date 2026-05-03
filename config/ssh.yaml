@@ -87,24 +87,19 @@ ssh:
 ### {{- end }}
 ###
 ### server {
-###   listen 2222 ssl proxy_protocol;
+###   listen 127.0.0.1:2222 ssl proxy_protocol;
 ###   server_name _;
 ###
-###   {{ $default_ssl_ceritificate := "" -}}
+###   {{ $selected_ssl_ceritificate := "default" -}}
 ###
 ###   {{- range $key, $_ := (. | get "ssl-ceritificates") -}}
 ###     {{- if regexMatch `^[\d]+\.[\d]+\.[\d]+\.[\d]+$` $key -}}
-###       {{- $default_ssl_ceritificate = $key -}}
+###       {{- $selected_ssl_ceritificate = $key -}}
 ###     {{- end -}}
 ###   {{- end -}}
 ###
-###   {{ if $default_ssl_ceritificate -}}
-###   ssl_certificate {{ . | get "ssl-ceritificates" | get $default_ssl_ceritificate | get "cert_file" }};
-###   ssl_certificate_key {{ . | get "ssl-ceritificates" | get $default_ssl_ceritificate | get "key_file" }};
-###   {{- else -}}
-###   ssl_certificate {{ . | get "ssl-ceritificates" | get "default" | get "cert_file" }};
-###   ssl_certificate_key {{ . | get "ssl-ceritificates" | get "default" | get "key_file" }};
-###   {{- end }}
+###   ssl_certificate {{ . | get "ssl-ceritificates" | get $selected_ssl_ceritificate | get "cert_file" }};
+###   ssl_certificate_key {{ . | get "ssl-ceritificates" | get $selected_ssl_ceritificate | get "key_file" }};
 ###
 ###   proxy_pass      $ssh_target;
 ### }
