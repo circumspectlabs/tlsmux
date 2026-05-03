@@ -61,13 +61,21 @@ ssh:
 ### .premux.snippet addition:
 ###
 ################################################################
-### {{ define "ssh_upstream" -}}
+### {{ define "escaped_sni_or_regex" -}}
+### {{- if .regex -}}
+### ~^{{- .sni -}}$
+### {{- else -}}
+### {{ .sni | default "" | replace "." "[.]" }}
+### {{- end -}}
+### {{- end -}}
+###
+### {{- define "ssh_upstream" -}}
 ### ssh_{{- regexReplaceAll "[^a-zA-Z0-9]" .sni "_" -}}
 ### {{- end -}}
 ###
 ### map "$ssl_server_name" $ssh_target {
 ###   {{- range $route := .ssh.routes }}
-###   "{{ $route.sni }}" {{ template "ssh_upstream" $route }};
+###   '{{ template "escaped_sni_or_regex" $route }}' {{ template "ssh_upstream" $route }};
 ###   {{- end }}
 ### }
 ###
@@ -88,7 +96,6 @@ ssh:
 ###
 ### server {
 ###   listen 127.0.0.1:2222 ssl proxy_protocol;
-###   server_name _;
 ###
 ###   {{ $selected_ssl_ceritificate := "default" -}}
 ###

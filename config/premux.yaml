@@ -81,7 +81,8 @@ premux:
       proxy_protocol: true
       whitelist:
         - 127.0.0.0/8
-    - sni: test3.local
+    - sni: killerbot-[0-9]{1,4}[.]local
+      regex: true
       target:
         - 10.0.0.10:6443
       proxy_protocol: false

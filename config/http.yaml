@@ -80,7 +80,6 @@ http:
   servers:
     - snippet: |-
         listen [::]:80 ipv6only=off default_server;
-        server_name _;
 
         root /var/empty;
         index index.html;
@@ -107,12 +106,30 @@ http:
     - snippet: |-
         # default http server
         listen 127.0.0.1:8443 default_server ssl proxy_protocol;
-        server_name _;
 
         {{ $selected_ssl_ceritificate := "default" -}}
 
         {{- range $key, $_ := (. | get "ssl-ceritificates") -}}
           {{- if regexMatch `^[\d]+\.[\d]+\.[\d]+\.[\d]+$` $key -}}
+            {{- $selected_ssl_ceritificate = $key -}}
+          {{- end -}}
+        {{- end -}}
+
+        ssl_certificate {{ . | get "ssl-ceritificates" | get $selected_ssl_ceritificate | get "cert_file" }};
+        ssl_certificate_key {{ . | get "ssl-ceritificates" | get $selected_ssl_ceritificate | get "key_file" }};
+
+        location / {
+          return 200 "Hello, World!";
+        }
+    - snippet: |-
+        # another http server
+        listen 127.0.0.1:8443 ssl proxy_protocol;
+        server_name killerbot-api.local;
+
+        {{ $selected_ssl_ceritificate := "default" -}}
+
+        {{- range $key, $_ := (. | get "ssl-ceritificates") -}}
+          {{- if eq "killerbot-api.local" $key -}}
             {{- $selected_ssl_ceritificate = $key -}}
           {{- end -}}
         {{- end -}}
