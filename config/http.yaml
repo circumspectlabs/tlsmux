@@ -13,8 +13,6 @@ http:
   snippet: |-
     sendfile  on;
 
-    map_hash_bucket_size  4096;
-
     gzip               off;
     gzip_proxied       off;
     gzip_static        off;

@@ -21,8 +21,6 @@ premux:
   ### definitions, default settings, etc.
   ###
   snippet: |-
-    map_hash_bucket_size  4096;
-
     ###
     ### If you want to enable SSH over TLS feature, you need to
     ### insert the mentioned in "ssh.yaml" file configuration here
