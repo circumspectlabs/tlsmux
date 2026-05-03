@@ -83,7 +83,7 @@ http:
         index index.html;
 
         location ^~ /.well-known/ {
-            alias /data/well-known/;
+            alias /data/.well-known/;
 
             limit_except GET {
                 deny all;
@@ -107,14 +107,14 @@ http:
 
         {{ $selected_ssl_ceritificate := "default" -}}
 
-        {{- range $key, $_ := (. | get "ssl-ceritificates") -}}
+        {{- range $key, $_ := (. | get "ssl-certificates") -}}
           {{- if regexMatch `^[\d]+\.[\d]+\.[\d]+\.[\d]+$` $key -}}
             {{- $selected_ssl_ceritificate = $key -}}
           {{- end -}}
         {{- end -}}
 
-        ssl_certificate {{ . | get "ssl-ceritificates" | get $selected_ssl_ceritificate | get "cert_file" }};
-        ssl_certificate_key {{ . | get "ssl-ceritificates" | get $selected_ssl_ceritificate | get "key_file" }};
+        ssl_certificate {{ . | get "ssl-certificates" | get $selected_ssl_ceritificate | get "cert_file" }};
+        ssl_certificate_key {{ . | get "ssl-certificates" | get $selected_ssl_ceritificate | get "key_file" }};
 
         location / {
           return 200 "Hello, World!";
@@ -126,15 +126,25 @@ http:
 
         {{ $selected_ssl_ceritificate := "default" -}}
 
-        {{- range $key, $_ := (. | get "ssl-ceritificates") -}}
+        {{- range $key, $_ := (. | get "ssl-certificates") -}}
           {{- if eq "killerbot-api.local" $key -}}
             {{- $selected_ssl_ceritificate = $key -}}
           {{- end -}}
         {{- end -}}
 
-        ssl_certificate {{ . | get "ssl-ceritificates" | get $selected_ssl_ceritificate | get "cert_file" }};
-        ssl_certificate_key {{ . | get "ssl-ceritificates" | get $selected_ssl_ceritificate | get "key_file" }};
+        ssl_certificate {{ . | get "ssl-certificates" | get $selected_ssl_ceritificate | get "cert_file" }};
+        ssl_certificate_key {{ . | get "ssl-certificates" | get $selected_ssl_ceritificate | get "key_file" }};
+
+        real_ip_header proxy_protocol;
+        real_ip_recursive on;
 
         location / {
+          ###
+          ### Don't leave it enabled if you finished to debug your configuration. This guy
+          ### who developed this service is a real hero, don't push his AWS bill up.
+          ### In addition, this allows to enable some tricky hacks and discovery tricks of
+          ### 3rd party services, so it might be also a security risk for you (low but still).
+          ###
+          # proxy_pass https://httpbin.org;
           return 200 "Hello, World!";
         }

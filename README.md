@@ -27,6 +27,8 @@ both stream routing and HTTP server definitions simultaneously.
 docker run -d \
     --name tlsmux-service \
     -v $(pwd)/config:/etc/config:ro \
+    -p 443:443 \
+    -p 80:80 \
   ghcr.io/circumspectlabs/tlsmux:latest
 
 # copy plain nginx configs into `stream {}` and `http {}` sections and use custom
@@ -41,6 +43,8 @@ docker run -d \
     -e HTTP_SNIPPETS_DIR=/mnt/http.d \
     -v $(pwd)/http.d:/mnt/http.d:ro \
     -v /etc/letsencrypt:/etc/letsencrypt:ro \
+    -p 443:443 \
+    -p 80:80 \
   ghcr.io/circumspectlabs/tlsmux:latest
 
 # sefely rebuild and reload confuration for running service
@@ -56,6 +60,8 @@ docker run -d \
     --name tlsmux-service \
     -v $(pwd)/config:/etc/config:ro \
     -v $(pwd)/template:/etc/template:ro \
+    -p 443:443 \
+    -p 80:80 \
   ghcr.io/circumspectlabs/tlsmux:latest
 ```
 

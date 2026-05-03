@@ -99,14 +99,14 @@ ssh:
 ###
 ###   {{ $selected_ssl_ceritificate := "default" -}}
 ###
-###   {{- range $key, $_ := (. | get "ssl-ceritificates") -}}
+###   {{- range $key, $_ := (. | get "ssl-certificates") -}}
 ###     {{- if regexMatch `^[\d]+\.[\d]+\.[\d]+\.[\d]+$` $key -}}
 ###       {{- $selected_ssl_ceritificate = $key -}}
 ###     {{- end -}}
 ###   {{- end -}}
 ###
-###   ssl_certificate {{ . | get "ssl-ceritificates" | get $selected_ssl_ceritificate | get "cert_file" }};
-###   ssl_certificate_key {{ . | get "ssl-ceritificates" | get $selected_ssl_ceritificate | get "key_file" }};
+###   ssl_certificate {{ . | get "ssl-certificates" | get $selected_ssl_ceritificate | get "cert_file" }};
+###   ssl_certificate_key {{ . | get "ssl-certificates" | get $selected_ssl_ceritificate | get "key_file" }};
 ###
 ###   proxy_pass      $ssh_target;
 ### }

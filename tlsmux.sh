@@ -68,7 +68,7 @@ function create_dhparam() {
 ###
 function discover_ssl_certs() {
     local out="${1}"
-    echo '"ssl-ceritificates":' > "${out}"
+    echo '"ssl-certificates":' > "${out}"
 
     SSL_CERTS_DISCOVERY_ROOT="/etc/letsencrypt"
     if [ -d "${SSL_CERTS_DISCOVERY_ROOT}/live" ] && [ "$(ls -1 "${SSL_CERTS_DISCOVERY_ROOT}/live" | wc -l || true)" != "0" ]; then
