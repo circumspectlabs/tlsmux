@@ -212,3 +212,4 @@ tlsmux reload   # re-render, validate, reload nginx; skip if unchanged
 - nginx docs: https://nginx.org/en/docs/
 - stream_ssl_preread: https://nginx.org/en/docs/stream/ngx_stream_ssl_preread_module.html
 - OpenResty Lua modules: see `Dockerfile`, search for `https://github\.com/.*lua`
+- Plenty of Lua examples: https://nginx-extras.getpagespeed.com/lua/

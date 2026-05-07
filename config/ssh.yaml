@@ -88,12 +88,6 @@ ssh:
 ###
 ### {{ end -}}
 ###
-### ssl_protocols TLSv1.2 TLSv1.3;
-### ssl_prefer_server_ciphers on;
-### {{ if .dhparams.found -}}
-### ssl_dhparam {{ .dhparams.file }};
-### {{- end }}
-###
 ### server {
 ###   listen 127.0.0.1:2222 ssl proxy_protocol;
 ###

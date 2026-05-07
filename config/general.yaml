@@ -25,6 +25,19 @@ global:
 
     daemon off;
 
+  ###
+  ### Resolver configuration, might be neccessary for features like OCSP
+  ### stapling, lua network actions, advanced upstream routing (with SRV
+  ### records or just general dynamic DNS resolution), and other.
+  ###
+  ### No default value!
+  ###
+  ### Examples:
+  ###   10.0.0.10
+  ###   10.0.0.10 ipv6=off valid=30s
+  ###
+  resolver: null
+
 ###
 ### You can practically add almost any number of settings here,
 ### even in different files. Everything will be deeply merged into

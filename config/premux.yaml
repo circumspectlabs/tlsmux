@@ -21,6 +21,19 @@ premux:
   ### definitions, default settings, etc.
   ###
   snippet: |-
+    {{ if .global.resolver -}}
+    resolver {{ .global.resolver }};
+
+    {{ end -}}
+
+    ssl_protocols TLSv1.3;
+    ssl_ecdh_curve secp521r1:secp384r1:prime256v1;
+    ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    {{ if .dhparams.found -}}
+    ssl_dhparam {{ .dhparams.file }};
+    {{- end }}
+
     ###
     ### If you want to enable SSH over TLS feature, you need to
     ### insert the mentioned in "ssh.yaml" file configuration here
