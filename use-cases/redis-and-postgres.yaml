@@ -1,0 +1,120 @@
+global:
+  ###
+  ### Exactly original snippet from general.yaml
+  ###
+  snippet: |-
+    worker_processes  auto;
+
+    error_log  /var/log/nginx/error.log notice;
+    pid        /var/run/nginx.pid;
+
+    events {
+      worker_connections 512;
+    }
+
+    daemon off;
+
+  ###
+  ### For example, for Kubernetes, it must be the IP address of the cluster
+  ### DNS service, very likely can be acquired with:
+  ###   kubectl get svc -n kube-system kube-dns -o 'jsonpath={.spec.clusterIP}'
+  ###
+  resolver: 10.0.0.10 # replace with your resolver IP address
+
+premux:
+  enabled: true
+
+  ###
+  ### Simplified snippet.
+  ###
+  snippet: |-
+    {{ if .global.resolver -}}
+    resolver {{ .global.resolver }};
+
+    {{ end -}}
+
+  routes:
+    ###
+    ### Postgres has "postgresql" ALPN, but it's not a standard, this is merely
+    ### a convention. You can always try to capture traffic on attempt to connect
+    ### to PostgreSQL server and check what ALPN is used in ClientHello.
+    ###
+    ### Then, you can use command like this one:
+    ###    psql -h postgres.example.tld -p 443 \
+    ###       sslmode=verify-full \
+    ###       sslrootcert=/path/to/ca.pem \
+    ###       sslcert=/path/to/client.pem \
+    ###       sslkey=/path/to/client.key
+    ###
+    - alpn:
+        - postgresql
+      target:
+        - postgres.postgres.svc:5432 resolve
+      ###
+      ### Let's allow connections only from specific IP addresses. That could
+      ### be, for example, addresses for CI/CD runners. It's a really bad idea
+      ### to expose database interfaces to public network.
+      ###
+      whitelist: &x_runner_nodes
+        - 1.1.1.1
+        - 2.2.2.2
+    ###
+    ### Redis doesn't use ALPN, it just doesn't have it in ClientHello, so we
+    ### must use SNI-based route. Using the no-ALPN present is also pretty dangerous
+    ### at least because PowerShell and WinGet HTTPS which just skip this while
+    ### connecting.
+    ###
+    ### redis-cli does support it with commands like this:
+    ###    redis-cli -h redis.example.tld -p 443 \
+    ###       --tls --sni redis.example.tld \
+    ###      --cacert /path/to/ca.pem \
+    ###      --cert /path/to/client.pem \
+    ###      --key /path/to/client.key \
+    ###      -a yourpassword \
+    ###      INFO
+    ###
+    ### Note that you must enable TLS for Redis server, and even better to enable
+    ### mutual TLS authentication, otherwise you will just expose your Redis server
+    ### to the public. Even with password authentication, it's not a good idea to
+    ### expose Redis server to the public network.
+    ###
+    - sni: redis.example.tld
+      target:
+        - redis.redis.svc:6379 resolve
+      ###
+      ### Same thing, don't expose Redis server even with password authentication.
+      ###
+      whitelist: *x_runner_nodes
+
+  ###
+  ### Skip for this case
+  ###
+  no_tls:
+    enabled: false
+
+  ###
+  ### Default target is used when no route matches. This is generally an HTTPS server,
+  ### but practically it can be anything.
+  ###
+  default:
+    enabled: true
+    target:
+      - apigw.apigw.svc:443 resolve
+    ###
+    ### For this example, it is some API Gateway. They are usually pretty smart and
+    ### have a lot of features which rely upon source IP address. It's better to
+    ### provide the source IP address with the first configuration. Keep in mind
+    ### that your API Gateway must support and expect proxy protocol headers.
+    ###
+    proxy_protocol: true
+
+  ###
+  ### If you want to use only IPv4, you can specify address like this.
+  ###
+  listen: "0.0.0.0:443"
+
+###
+### For the particular use case, let's disable this feature as not relevant.
+###
+http:
+  enabled: false

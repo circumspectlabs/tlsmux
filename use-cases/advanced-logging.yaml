@@ -27,7 +27,7 @@ global:
   syslog_socket: unix:/mnt/syslog.sock
 
 ###
-### For the particular use case, let's disable this feature as no relevant.
+### For the particular use case, let's disable this feature as not relevant.
 ###
 premux:
   enabled: false

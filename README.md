@@ -171,6 +171,19 @@ If you need another module, please create issue.
 - Security-hardened defaults: `server_tokens off`, hidden `X-Powered-*` / `Server` headers,
   TLS 1.2+ only, `ssl_prefer_server_ciphers on`
 
+## Extra Examples
+
+Some very useful configuration examples are available in `use-cases` folder. These
+are single-file configurations just to simplify the case. They are also full of
+comments.
+
+| File | Purpose |
+|------|---------|
+| `advanced-logging.yaml` | Disabled TLS mux, it is HTTP-only mode. Using Lua code, we improve JSON logging with the data extracted from JWT tokens, and then push it to syslog interface. In addition, it shows how you can enable a simple templated API gateway configuration. |
+| `redis-and-postgres.yaml` | Case with TLS mux and without HTTP service at all. From single port, we just identify and forward connections to Redis or Postgres, or fallback to HTTPS server. |
+
+Feel free to suggest or request other examples via Issues.
+
 ## Configuration
 
 Configuration lives in a directory of YAML files (default: `/etc/config`). All files are

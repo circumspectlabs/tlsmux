@@ -82,7 +82,7 @@ ssh:
 ### {{ range $upstream := .ssh.routes -}}
 ### upstream {{ template "ssh_upstream" $upstream }} {
 ###   {{ range .target -}}
-###   server "{{ . }}";
+###   server {{ . }};
 ###   {{- end }}
 ### }
 ###
