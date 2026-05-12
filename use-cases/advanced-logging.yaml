@@ -1,0 +1,199 @@
+global:
+  ###
+  ### From the original template, only error_log is changed.
+  ###
+  snippet: |-
+    worker_processes  auto;
+
+    error_log  syslog:server={{ .global.syslog_socket }},tag=error_log,nohostname notice;
+    pid        /var/run/nginx.pid;
+
+    events {
+      worker_connections 512;
+    }
+
+    daemon off;
+
+  ###
+  ### For example, for Kubernetes, it must be the IP address of the cluster
+  ### DNS service, very likely can be acquired with:
+  ###   kubectl get svc -n kube-system kube-dns -o 'jsonpath={.spec.clusterIP}'
+  ###
+  resolver: 10.0.0.10 # replace with your resolver IP address
+
+  ###
+  ### Let's add arbitrary settings!
+  ###
+  syslog_socket: unix:/mnt/syslog.sock
+
+###
+### For the particular use case, let's disable this feature as no relevant.
+###
+premux:
+  enabled: false
+
+###
+### Here's the whole magic. We parse JWT with Lua and create an extra log format
+### with the claims of the token. Then we enable access logs with syslog unix socket
+### which knows what to do next.
+###
+http:
+  enabled: true
+
+  ###
+  ### It's better to add all content from the original template, it's skipped
+  ### just to simplify the example.
+  ###
+  snippet: |-
+    ###
+    ### Content from .http.snippet (file: config/http.yaml) must be here. Or at
+    ### least recommended.
+    ###
+
+    ###
+    ### Define variables to be filled by Lua. It's kind of a hack to just declare
+    ### the existance of variable, so you can ignore "$host" origin.
+    ###
+    map $host $jwt_present { default 'false'; }
+    map $host $jwt_error { default 'false'; }
+    map $host $jwt_claim_exp { default 0; }
+    map $host $jwt_claim_iat { default 0; }
+    map $host $jwt_claim_sub { default '-'; }
+    map $host $jwt_claim_jti { default '-'; }
+    map $host $jwt_claim_tid { default '-'; }
+    map $host $jwt_claim_is_admin { default 'false'; }
+
+    ###
+    ### Lua code to parse JWT and fill variables. You can add more claims as you
+    ### wish, just don't forget to declare them above.
+    ###
+    log_by_lua_block {
+        local jwt = require "resty.jwt"
+
+        local auth_header = ngx.req.get_headers()['Authorization']
+        if not auth_header then
+            ngx.var.jwt_present = 'false'
+            return
+        end
+        local jwt_token_raw = ngx.re.sub(auth_header, 'Bearer ', '')
+
+        if jwt_token_raw then
+            ngx.var.jwt_present = 'true'
+        else
+            ngx.var.jwt_present = 'false'
+            return
+        end
+
+        local jwt_token = jwt:load_jwt(jwt_token_raw)
+        if jwt_token.valid then
+            ngx.var.jwt_error = 'false'
+        else
+            ngx.var.jwt_error = 'true'
+            return
+        end
+
+        ngx.var.jwt_claim_exp = jwt_token.payload.exp or 0
+        ngx.var.jwt_claim_iat = jwt_token.payload.iat or 0
+        ngx.var.jwt_claim_sub = jwt_token.payload.sub or '-'
+        ngx.var.jwt_claim_jti = jwt_token.payload.jti or '-'
+        ngx.var.jwt_claim_tid = jwt_token.payload.tid or '-'
+        ngx.var.jwt_claim_is_admin = jwt_token.payload.is_admin or false
+    }
+
+    log_format json_syslog '{'
+                            '"timestamp":"$time_iso8601_ms",'
+                            # remote
+                            '"remote_addr":"$remote_addr",'
+                            '"proxy_protocol_addr":"$proxy_protocol_addr",'
+                            '"http_x_forwarded_for":"$http_x_forwarded_for",'
+                            # http
+                            '"protocol":"$server_protocol",'
+                            '"method":"$request_method",'
+                            '"uri":"$request_uri",'
+                            '"status":$status,'
+                            # data
+                            '"bytes_sent":$bytes_sent,'
+                            '"bytes_recv":$request_length,'
+                            '"body_bytes_sent":$body_bytes_sent,'
+                            '"body_bytes_recv":$body_bytes_recv,'
+                            # upstream
+                            '"upstream_addr":"$upstream_addr",'
+                            '"upstream_bytes_received":$fixed_upstream_bytes_received,'
+                            '"upstream_bytes_sent":$fixed_upstream_bytes_sent,'
+                            '"upstream_connect_time":$fixed_upstream_connect_time,'
+                            '"upstream_header_time":$fixed_upstream_header_time,'
+                            '"upstream_response_time":$fixed_upstream_response_time,'
+                            '"upstream_status":$fixed_upstream_status,'
+                            # timing
+                            '"request_time":$request_time,'
+                            '"connection_time":$connection_time,'
+                            # identifiers
+                            '"request_id":"$request_id",'
+                            '"connection_id":$connection,'
+                            '"connection_request_id":$connection_requests,'
+                            '"correlation_id":"$http_x_correlation_id",'
+                            # jwt
+                            '"jwt_present":$jwt_present,'
+                            '"jwt_error":$jwt_error,'
+                            '"jwt_claim_exp":$jwt_claim_exp,'
+                            '"jwt_claim_iat":$jwt_claim_iat,'
+                            '"jwt_claim_sub":"$jwt_claim_sub",'
+                            '"jwt_claim_jti":"$jwt_claim_jti",'
+                            '"jwt_claim_tid":"$jwt_claim_tid",'
+                            '"jwt_claim_is_admin":$jwt_claim_is_admin,'
+                            # misc
+                            '"remote_user":"$remote_user",'
+                            '"http_referer":"$http_referer",'
+                            '"http_origin":"$http_origin",'
+                            '"http_user_agent":"$http_user_agent",'
+                            '"request_completion":$request_completion_boolean_status'
+                        '}';
+
+    ###
+    ### If we want to publish logs in BOTH stdout and syslog, we should re-define
+    ### access_log again. If you want only syslog, you can skip the first access_log
+    ### definition.
+    ###
+    access_log /var/log/nginx/access.log main;
+    access_log syslog:server={{ .global.syslog_socket }},tag=http_access_log,nohostname json_syslog;
+
+  ###
+  ### For particular case, we need only one plain HTTP server, but with numerous locations and
+  ### different proxy_pass targets. This server template depends on "that arbitrary section"
+  ### below.
+  ###
+  servers:
+    - snippet: |-
+        listen [::]:8080 ipv6only=off default_server;
+
+        {{ range .apigw.locations -}}
+        location {{ .path }} {
+            # avoid crash on boot
+            set $target {{ .target }};
+
+            proxy_pass {{ printf "%s://" (.scheme | default "http") }}$target;
+
+            {{ if .snippet -}}
+            {{ .snippet }}
+            {{- end }}
+        }
+
+        {{ end -}}
+
+###
+### This is an arbitrary section to show you how you can enable single template
+### for multiple locations and proxy_pass to different microservices.
+###
+apigw:
+  locations:
+    - path: /api/v1/
+      target: api.app.svc:8080
+    - path: /api/v2/
+      target: api-v2.app.svc:8080
+    - path: /api/auth/
+      target: auth-api.app.svc:8080
+      scheme: https
+    - path: /
+      target: ui.app.svc:8080
+      snippet: |-
+        try_files $uri $uri/ /index.html;
