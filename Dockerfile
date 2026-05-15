@@ -1,6 +1,7 @@
 ARG ALPINE_VERSION=3.23
+ARG NGINX_VERSION=1.31.0
 
-FROM nginx:stable-alpine${ALPINE_VERSION}-slim AS base
+FROM nginx:${NGINX_VERSION}-alpine${ALPINE_VERSION}-slim AS base
 
 RUN apk add --no-cache             \
         bash                       \
