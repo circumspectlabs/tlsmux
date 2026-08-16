@@ -3,7 +3,7 @@ import os
 import sys
 import re
 import logging
-from typing import Any
+from typing import Any, Optional
 import datetime
 import requests
 from copy import deepcopy
@@ -214,7 +214,7 @@ def __filter_by_rules(versions: list[str], rules: list[dict]) -> list[str]:
     return versions
 
 
-def version_github_release(github: str, **kvargs: dict[str, Any]) -> str | None:
+def version_github_release(github: str, **kvargs: dict[str, Any]) -> Optional[str]:
     count = 100
     headers = {
         'X-GitHub-Api-Version': '2026-03-10',
@@ -253,7 +253,7 @@ def version_github_release(github: str, **kvargs: dict[str, Any]) -> str | None:
     return max(tags, key=key)
 
 
-def version_github_tag(github: str, **kvargs: dict[str, Any]) -> str | None:
+def version_github_tag(github: str, **kvargs: dict[str, Any]) -> Optional[str]:
     count = 100
     headers = {
         'X-GitHub-Api-Version': '2026-03-10',
@@ -291,7 +291,7 @@ def version_github_tag(github: str, **kvargs: dict[str, Any]) -> str | None:
     return max(tags, key=key)
 
 
-def version_alpine(**kvargs: dict[str, Any]) -> str | None:
+def version_alpine(**kvargs: dict[str, Any]) -> Optional[str]:
     response = requests.get(
         url=f'https://dl-cdn.alpinelinux.org/alpine/',
         allow_redirects=True,
